@@ -1,0 +1,8 @@
+sphinx
+sphinx-autobuild
+sphinx-autodoc2
+sphinx-togglebutton
+sphinxcontrib-opendataservices
+sphinxcontrib-opendataservices-jsonschema
+sphinx_rtd_theme
+myst-parser

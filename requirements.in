@@ -1,0 +1,6 @@
+click
+ocdskit
+requests
+xlsxwriter
+flattentool>=0.22
+pyyaml

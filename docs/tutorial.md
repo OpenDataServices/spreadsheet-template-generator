@@ -36,7 +36,7 @@ That's because we need to specify a URL from which the codelist CSV files can be
 python manage.py create-template 360-giving-schema.json --rollup --codelist-base-url https://raw.githubusercontent.com/ThreeSixtyGiving/standard/master/codelists/ --codelist-docs-url https://standard.threesixtygiving.org/en/latest/technical/codelists/
 ```
 
-Recreate the template and look at the `main` worksheet again. You should see a drop-down list for `toIndividualDetails/primaryGrantReason` and a link to the codelist documentation:
+Recreate the template using the above command and look at the `main` worksheet again. You should see a drop-down list for `toIndividualDetails/primaryGrantReason` and a link to the codelist documentation:
 
 ![Primary Grant Reason](image-4.png)
 

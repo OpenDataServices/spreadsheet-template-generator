@@ -30,14 +30,12 @@
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['autodoc2',
-              'myst_parser',
+extensions = ['myst_parser',
               'sphinxcontrib.opendataservices',
               'sphinxcontrib.jsonschema',
               'sphinx_rtd_theme',
               'sphinx_click',
               'sphinx.ext.todo',
-              'sphinx.ext.autodoc',
               'sphinx_togglebutton',]
 
 autodoc2_packages = [

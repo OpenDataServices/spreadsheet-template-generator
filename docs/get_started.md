@@ -13,8 +13,8 @@ Install requirements:
 pip install -r requirements.txt
 ```
 
-Create a template using the example schema and codelists:
+Create a template using a JSON schema:
 
 ```python
-python manage.py create-template ../example/schema.json -c config.yaml
+python manage.py create-template path/to/schema.json
 ```

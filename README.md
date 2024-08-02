@@ -9,4 +9,4 @@ This Python package provides a command-line tool for generating a spreadsheet in
 * 360Giving Standard
 * Beneficial Ownership Data Standard (BODS)
 
-If you are viewing this on GitHub or PyPI, open the full documentation for additional details.
+If you are viewing this on GitHub or PyPI, open the [full documentation](https://spreadsheet-template-generator.readthedocs.io/en/latest/) for additional details.

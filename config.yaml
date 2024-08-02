@@ -1,15 +1,16 @@
-codelist_base_url: https://raw.githubusercontent.com/OpenDataServices/json-schema-spreadsheet-template-generator/master/example/codelists/
-codelist_docs_url: https://json-schema-spreadsheet-template-generator.readthedocs.io/en/latest/example/codelists
-wkt: true
-input_rows: 100
-main_sheet_name: main
-truncation_length: 10
-rollup: false
+schema_url:
+codelist_base_url:
+codelist_docs_url:
+wkt:
+input_rows:
+main_sheet_name:
+truncation_length:
+rollup:
 sheets:
-# The order of the sheets in the template, e.g.
+# An ordered list of sheets to include in the template, e.g.
 # - sheet1
 # - sheet2
-# If an order is not specified, sheets are ordered alphabetically.
+# If not specified, all sheets ouput by Flatten Tool are included in alphabetical order.
 include_fields:
 # A list of fields to include in the template. When set, all other fields in the schema are omitted from the template. Specify fields using JSON Pointer syntax, e.g.
 # - path/to/field
@@ -20,17 +21,18 @@ exclude_fields:
 # - path/to/field
 # - path/to/array/0/field
 # You cannot set both include_fields and exclude_fields in the same config file.
+metadata:
+# A map of metadata fields and values to add to the metadata tab: https://flatten-tool.readthedocs.io/en/latest/unflatten/#metadata-tab, e.g.
+  # version: 1.1
+  # title: My dataset
 field_guidance:
-# User guidance associated with specific fields. Specify fields using JSON Pointer syntax, e.g. 
+# A map of fields and user guidance. Specify fields using JSON Pointer syntax, e.g. 
   # path/to/field: Guidance associated with path/to/field
   # path/to/array/0/field: Guidance associated with path/to/array/0/field
 fixed_values:
 # A map of fields and fixed (pre-populated) values. A field's fixed values are populated when the first input column in the same sheet is populated. Fixed values are implemented using formulae of the form IF(B{row}="","",fixed_value). For more complex logic, specify your own formulae using the formulae configuration option. Specify fields using JSON Pointer syntax, e.g. 
   # path/to/field: 123
   # path/to/array/0/field: abc
-formulae:
-# A map of fields and formulae to calculate their values. Specify formulae using Excel-compatible functions. To reference values on the same row, substitute the row number with {row}. Changes to the schema or configuration options (including include_fields, exclude_fields, wkt and rollup) may affect formulae. Specify fields using JSON Pointer syntax, e.g.
-  # path/to/field: =IF(B{row}="","",123)
 variables:
 # A map of user-editable variable names and default values, for use in formulae. A default value can be specified for each variable. Variables are listed in the '# Variables' sheet of the template and a named range is created for each variable. Variable names:
 # * Can contain only letters, numbers, and underscores.
@@ -39,4 +41,16 @@ variables:
 # * Must be 1–250 characters.
 # * Can't be in either A1 or R1C1 syntax, like "A1:B2" or "R1C1:R2C2."
 # For example:
-# currency: GBP
+formulae:
+# A map of fields and formulae to calculate their values. Specify formulae using Excel-compatible functions. To reference values on the same row, substitute the row number with {row}. Changes to the schema or configuration options (including include_fields, exclude_fields, wkt and rollup) may affect formulae. Specify fields using JSON Pointer syntax, e.g.
+  # path/to/field: =IF(B{row}="","",123)
+source_fields:
+# A map of source fields to include in the template, for use in formulae. Source fields are excluded when data is converted to JSON format.
+  # field_name: A name for the field.
+  #   sheet: The sheet to which to add the field.
+  #   successor: The field before which to add the field.
+  #   title: A human-readable title for the field.
+  #   description: A human-readable description for the field.
+  #   required: Whether the field is required (mandatory).
+  #   type: The field's type, e.g. string (text), number (decimal), integer (whole number) etc.
+  #   input_guidance:

@@ -30,6 +30,7 @@ If you are viewing this on GitHub or PyPI, open the full documentation for addit
 
 ```{toctree}
 get_started.md
+tutorial.md
 cli.md
 user.md
 example.md

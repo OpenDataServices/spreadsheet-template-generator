@@ -78,6 +78,14 @@ def cli():
     show_default=True,
 )
 @click.option(
+    "-o",
+    "--output-file",
+    type=click.Path(dir_okay=False),
+    default="template.xlsx",
+    help="Path to which to write the template.",
+    show_default=True,
+)
+@click.option(
     "-b",
     "--codelist-base-url",
     type=str,
@@ -135,6 +143,7 @@ def cli():
 def create_template(
     ctx,
     schemafile,
+    output_file,
     codelist_base_url,
     codelist_docs_url,
     wkt,
@@ -146,53 +155,56 @@ def create_template(
     """
     Generates a template from SCHEMAFILE for entering data in spreadsheet format.
 
-    SCHEMAFILE the JSON Schema file from which to generate the template. 
+    SCHEMAFILE the JSON Schema file from which to generate the template. Additional options can be specified in a configuration file.
     """
 
     # Parse configuration options not mapped to CLI options
     if ctx.default_map:
-        if type(ctx.default_map.get('sheets', [])) != list:
-            raise TypeError("Config: sheets is not a list.")
-        else:
-            sheets = {sheet: [] for sheet in ctx.default_map.get('sheets', [])}
 
-        include_fields = ctx.default_map.get('include_fields')
-        if include_fields and type(include_fields) != list:
-            raise TypeError("Config: include_fields is not a list.")
-        
-        exclude_fields = ctx.default_map.get('exclude_fields')
-        if exclude_fields and type(exclude_fields) != list:
-            raise TypeError("Config: exclude_fields is not a list.")
-        
-        field_guidance = ctx.default_map.get('field_guidance', None)
-        if field_guidance is None:
-            field_guidance = {}
-        if type(field_guidance) != dict:
-            raise TypeError("Config: field_guidance is not a map (dict).")
-        
-        fixed_values = ctx.default_map.get('fixed_values', None)
-        if fixed_values is None:
-            fixed_values = {}
-        if type(fixed_values) != dict:
-            raise TypeError("Config: fixed_values is not a map (dict).")
-        
-        formulae = ctx.default_map.get('formulae', None)
-        if formulae is None:
-            formulae = {}
-        if type(formulae) != dict:
-            raise TypeError("Config: formulae is not a map (dict).")
-        
-        variables = ctx.default_map.get('variables', None)
-        if variables is None:
-            variables = {}
-        if type(variables) != dict:
-            raise TypeError("Config: variables is not a map (dict).")
+        option_types = {
+            "sheets": list,
+            "include_fields": list,
+            "exclude_fields": list,
+            "package_metadata": dict,
+            "field_guidance": dict,
+            "fixed_values": dict,
+            "formulae": dict,
+            "variables": dict,
+            "source_fields": dict
+        }
+
+        # Validate types and set defaults
+        for option, t in option_types.items():
+            if ctx.default_map.get(option) and type(ctx.default_map.get(option)) != t:
+                raise TypeError(f"Config: {option} is not a {t}.")
+            elif ctx.default_map.get(option) is None:
+                if t == list:
+                    ctx.default_map[option] = []
+                elif t == dict:
+                    ctx.default_map[option] = {}
+                else:
+                    ctx.default_map[option] = None
+
+        sheets = {sheet: [] for sheet in ctx.default_map['sheets']}
+        include_fields = ctx.default_map['include_fields']
+        exclude_fields = ctx.default_map['exclude_fields']
+        package_metadata = ctx.default_map['package_metadata'] 
+        field_guidance = ctx.default_map['field_guidance']
+        fixed_values = ctx.default_map['fixed_values']
+        formulae = ctx.default_map['formulae']
+        variables = ctx.default_map['variables']
+        source_fields = {f"# {path}": field for path, field in ctx.default_map['source_fields'].items()}
 
     else:
         sheets = {}
         include_fields = None
         exclude_fields = None
+        package_metadata = {}
         field_guidance = {}
+        fixed_values = {}
+        formulae = {}
+        variables = {}
+        source_fields = {}
 
     if include_fields and exclude_fields:
         raise RuntimeError("Config file must specify at most one of `include_fields` and `exclude_fields`.")
@@ -204,8 +216,7 @@ def create_template(
     # Generate a temporary CSV template using Flatten Tool
     temp_path = ".temp"
     os.makedirs(temp_path, exist_ok=True)
-    json_dump(".temp/schema.json", schema)
-    command = f"flatten-tool create-template -s {temp_path}/schema.json -f csv -m {main_sheet_name} -o {temp_path} --truncation-length {truncation_length}"
+    command = f"flatten-tool create-template -s {schemafile} -f csv -m {main_sheet_name} -o {temp_path} --truncation-length {truncation_length}"
     if wkt:
         command = f"{command} --convert-wkt"
     if rollup:
@@ -224,12 +235,15 @@ def create_template(
                 ),
             )
 
-    # Generate a mapping sheet to use as a source for field metadata
+    # Get field metadata from schema
     schema_table = mapping_sheet(schema, include_codelist=True, base_uri=schemafile)
     field_metadata = {field["path"]: field for field in schema_table[1]}
+    
+    # Add source fields from config file
+    field_metadata.update(source_fields)
 
     # Create XLSX template
-    workbook = xlsxwriter.Workbook(f"templates/template.xlsx")
+    workbook = xlsxwriter.Workbook(output_file)
 
     # Define order, row heights and cell formats for header rows
     header_rows = {
@@ -276,8 +290,8 @@ def create_template(
             "cell_format": workbook.add_format(
                 {
                     "font_size": 8,
-                    "font_color": "blue",
-                    "underline": True,
+                    "font_color": "blue" if codelist_docs_url else "black",
+                    "underline": True if codelist_docs_url else False,
                     "bg_color": "#efefef",
                 }
             ),
@@ -323,9 +337,11 @@ def create_template(
     meta_worksheet = workbook.add_worksheet("Meta")
     meta_worksheet.hide()
     meta_worksheet.write_row(0, 0, META_CONFIG)
+    for i, (key, value) in enumerate(package_metadata.items()):
+        meta_worksheet.write_row(i , 0, [key, value])
 
     # Add variables worksheet for user-specified variables
-    if len(variables) > 0:
+    if variables and len(variables) > 0:
         variables_worksheet = workbook.add_worksheet("# Variables")
         variables_worksheet.write_row(0, 0, ['Name', 'Value'])
         for i, (key, value) in enumerate(variables.items()):
@@ -360,12 +376,25 @@ def create_template(
         file_path = os.path.join(temp_path, f"{sheet}.csv")
         with open(file_path, "r") as f:
             reader = csv.reader(f)
-            if include_fields:
-                sheets[sheet] = [path for path in next(reader) if path in include_fields]
-            elif exclude_fields:
-                sheets[sheet] = [path for path in next(reader) if path not in exclude_fields]
-            else:
-                sheets[sheet] = next(reader)
+            paths = []
+            for path in next(reader):
+                
+                # Add source fields from configuration file
+                if source_fields:
+                    for p, field in source_fields.items():
+                        if path == field['successor']:
+                            paths.append(p)
+                
+                if include_fields:
+                    if path in include_fields:
+                        paths.append(path)
+                elif exclude_fields:
+                    if path not in exclude_fields:
+                        paths.append(path)
+                else:
+                    paths.append(path)
+            
+            sheets[sheet] = paths
 
         # Add worksheets, skip empty sheets and sheets that only include `id`
         if len(sheets[sheet]) > 0 and sheets[sheet] != ['id']:
@@ -390,24 +419,28 @@ def create_template(
                 metadata_path = "/".join([part for part in path.split("/") if part != "0"])
 
                 # Write field metadata as header rows
-                data_type = field_metadata[metadata_path]["type"]
-                values = field_metadata[metadata_path]["values"]
-                codelist = field_metadata[metadata_path]["codelist"]
+                data_type = field_metadata[metadata_path].get("type")
+                values = field_metadata[metadata_path].get("values")
+                codelist = field_metadata[metadata_path].get("codelist")
 
                 # Generate codelist hyperlink formula
                 if codelist:
                     codelist_name = codelist.split(".")[0]
-                    codelist_formula = f"""=HYPERLINK("{codelist_docs_url}{codelist_name.replace("_", "-")}","{codelist_name}")"""
+                    if codelist_docs_url:
+                        codelist_formula = f"""=HYPERLINK("{codelist_docs_url}#{codelist_name.replace("_", "-")}","{codelist_name}")"""
+                    else:
+                        codelist_formula = f'="{codelist_name}"'
                 else:
                     codelist_formula = ""
 
                 metadata = {
                     "path": path,
-                    "title": field_metadata[metadata_path]["title"],
-                    "description": field_metadata[metadata_path]["description"],
+                    "title": field_metadata[metadata_path].get("title"),
+                    "description": field_metadata[metadata_path].get("description"),
                     "required": (
                         "Required"
-                        if field_metadata[metadata_path]["range"][0] == "1"
+                        if len(field_metadata[metadata_path].get("range", ""))
+                        and field_metadata[metadata_path]["range"][0] == "1"
                         else ""
                     ),
                     "type": data_type,
@@ -509,19 +542,19 @@ def create_template(
                 validation_options = None
 
                 # Set data validation for identifiers
-                for name, paths in sheets.items():
-                    if sheet == name:
-                        break
-                    elif path in paths:
-                        column_ref = xl_col_to_name(paths.index(path) + 1)
-                        validation_options = {
-                            "validate": "list",
-                            "source": f"={name}!${column_ref}${len(header_rows) + 1}:${column_ref}${input_rows}",
-                        }
-                        break
+                # for name, paths in sheets.items():
+                #     if sheet == name:
+                #         break
+                #     elif path in paths:
+                #         column_ref = xl_col_to_name(paths.index(path) + 1)
+                #         validation_options = {
+                #             "validate": "list",
+                #             "source": f"={name}!${column_ref}${len(header_rows) + 1}:${column_ref}${input_rows}",
+                #         }
+                #         break
 
                 # Set data validation for codelists
-                if codelist:
+                if codelist and (values[:4] == "Enum" or codelist_base_url):
                     validation_options = {"validate": "list"}
 
                     if values[:4] == "Enum":
@@ -537,7 +570,7 @@ def create_template(
                             validation_options["error_message"] = (
                                 "You must use a code from the codelist.\n\nIf no code is appropriate, please create an issue in the standard."
                             )
-                    else:
+                    elif codelist_base_url:
                         codelist_csv = get(f"{codelist_base_url}{codelist}")
                         codelist_reader = csv.DictReader(
                             codecs.iterdecode(codelist_csv.iter_lines(), "utf-8")
